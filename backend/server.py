@@ -47,6 +47,7 @@ def background_thread():
     global numberReplayed
     global replayMode
     global numberToReplay
+
     while generateData:
         print("sending data", thresholdDict)
         data = []
@@ -99,12 +100,14 @@ def test_replay(data):
     global replayMode
     global replayStartIndex
     global numberToReplay
+    print("Reaching here", data)
     if data['start'] == data['end'] and data['start'] == 0:
         if replayMode:
             print("Ending replay", data)
             replayMode = not replayMode
             numberToReplay = 0
-            emit('replay_ack', {data:'Ending replay on request'})
+            emit('replay_ack', {'data':'Ending replay on request', 'replayMode':1})
+
     elif data['start'] < data['end']:
         if not replayMode:
             print("Starting replay with data", data)
@@ -176,6 +179,13 @@ def test_connect_ack(data):
     print("sending frequency",  {'frequency': update_frequency_milliseconds})
     emit('frequency', {'frequency': update_frequency_milliseconds*0.001})
 
+@socketio.on('toggle_feed')
+def test_toggle_feed(data):
+    global generateData
+    print("toggle feed", generateData)
+    generateData = not generateData
+    print("toggle feed", generateData)
+
 @socketio.on('thresholdUpdate')
 def updateDict(data):
     global thresholdDict
@@ -187,7 +197,10 @@ def updateDict(data):
 def updateDict(data):
     global update_frequency_milliseconds
     print("frequencyUpdate", data, data['frequency'])
-    if  data['frequency']:update_frequency_milliseconds = data['frequency']
+    if data['frequency']:
+        if data['frequency'] < 100:
+            return
+        elif data['frequency']:update_frequency_milliseconds = data['frequency']
 
     # if 50 < data['frequency'] : update_frequency_milliseconds = data['frequency']
     # thresholdDict = data

@@ -4,9 +4,12 @@ import { AgGridColumn, AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/dist/styles/ag-grid.css';
 import 'ag-grid-community/dist/styles/ag-theme-alpine.css';
 import InputField from './InputField';
-import FrequencyField from './FrequencyField';
+// import FrequencyField from './FrequencyField';
 import TimeInputField from './TimeInputField';
-
+import Button from 'react-bootstrap/Button'
+import FormControl from 'react-bootstrap/FormControl'
+import Form from 'react-bootstrap/Form'
+import 'bootstrap/dist/css/bootstrap.min.css'
 
 import io from 'socket.io-client';
 
@@ -29,6 +32,7 @@ const MyGrid = ({gridType}) => {
     const [replayDict, setReplayDict] = useState({
         'replayMode':0, 'starttime':0, 'endtime': 0
     });
+    const [feedOn, setFeedOn] = useState(1);
 
     const onGridReady = (params: GridReadyEvent) => {
         setGridApi(params.api);
@@ -95,44 +99,54 @@ const MyGrid = ({gridType}) => {
         socket.emit('disconnect', {'id':1})
     }
 
-    const onUpdate = (ric, price) => {
-         console.log("Recevied from child", ric, price);
-         if("number" !== typeof parseInt(price))return;
-         let temp = ricList
-         temp[ric] = parseInt(price)
-         setricList(temp)
-     }
+    const onTUpdate = (evt) => {
+          console.log("Recevied update", evt.target, evt.target.value);
+          let temp = ricList
+          temp[evt.target.id] = parseInt(evt.target.value)
+          setricList(temp)
+      }
 
-    const onTimeUpdate = (whichtime, newtime) => {
-          console.log("Recevied from child", whichtime, newtime);
-          if("number" !== typeof parseInt(newtime))return;
-          let temp = replayDict
-          temp[whichtime] = parseInt(newtime)
-          setReplayDict(temp)
-     }
+    const onTimeUpdate = (evt) => {
+           console.log("Recevied update", evt.target, evt.target.value);
+           let temp = replayDict
+           temp[evt.target.id] = parseInt(evt.target.value)
+           setReplayDict(temp)
+      }
 
-    const onFreqUpdate =  (newFrequency) => {
-          console.log("Got Freq update");
-          setFrequency(parseInt(newFrequency))
+    const onFreqUpdate =  (evt) => {
+          console.log("Got Freq update", evt.target);
+          setFrequency(parseInt(evt.target.value))
     }
 
-    const onSend = () => socket.emit('thresholdUpdate', ricList)
+    const sendThreshold = () => socket.emit('thresholdUpdate', ricList)
 
-    const onSend2 = () => socket.emit('frequencyUpdate', {'frequency' : parseInt(frequency)})
+    const sendFrequency = () => {
+        console.log("Emitting frequency update");
+        socket.emit('frequencyUpdate', {'frequency' : frequency})
+    }
 
-    const onSend3 = () => {
+    const onSendReplay = () => {
+        console.log("reaching here");
          let replaying = replayDict.replayMode
          if(!replaying){
+             console.log("reaching here 1");
              socket.emit('toggle_replay',
              {'start': replayDict.starttime, 'end': replayDict.endtime})
+
          }
          else{
              socket.emit('toggle_replay', {'start': 0, 'end': 0})
          }
-         let temp = replayDict
-         temp.replayMode = !temp.replayMode
-         setReplayDict(temp)
+         // let temp = replayDict
+         // temp.replayMode = !temp.replayMode
+         // setReplayDict(temp)
      }
+
+    // const toggleFeed = () => {
+    //     console.log("sending toggle feed");
+    //     socket.emit('toggle_feed', {'data': feedOn})
+    //     setFeedOn(!feedOn)
+    // }
 
     const getRowStyle = params => {
         let ric = params.node.data.ric
@@ -142,35 +156,24 @@ const MyGrid = ({gridType}) => {
         else return { background: 'red' }
     };
 
-
     return (
-        <div >
-        <div   style={{ display: 'flex',alignItems: 'center',ustifyContent: 'center', }}>
-            <form className="Form1">
+        <div className='ml-2'>
+        <div style={{width:'50%'}}>
+            <Form>
                 {Object.keys(ricList).map(key =>
-                    <InputField
-                        onChildChange={onUpdate}
-                        key={key}
-                        threshold={ricList[key]}
-                        label={key}
-                        name={key}
-                    />
+                <Form.Group controlId={key}>
+                    <Form.Label column="sm">{key}</Form.Label>
+                    <Form.Control size="sm" type="number" placeholder={ricList[key]} onChange={onTUpdate}/>
+                </Form.Group>
                 )
                 }
-            </form>
-            <button onClick={onSend}>Update Threshold</button>
+            <Button onClick={sendThreshold}>Update Threshold</Button>
+            </Form>
         </div>
         <br></br>
-        <p>Give number of mins to go behind, for last 5 mins 0 - 5, for last 4 mins 1 - 5</p>
-        <p>starttime can accept 0-4, endtime can accept 1-5</p>
-        <TimeInputField time={replayDict.starttime} label={'starttime'} name={'starttime'} onChildChange={onTimeUpdate}/>
-        <br></br>
-        <TimeInputField time={replayDict.endtime} label={'endtime'} name={'endtime'} onChildChange={onTimeUpdate}/>
-        <br></br>
-        {replayDict.replayMode ?
-            <button onClick={onSend3}>End Replay</button>
-            : <button onClick={onSend3}>Start Replay</button>
-        }
+        <div style={{width:'50%'}}>
+
+        </div>
         <br></br>
         <div className="ag-theme-alpine" style={{height: 1000, width: 800 }}>
             <AgGridReact
@@ -178,38 +181,88 @@ const MyGrid = ({gridType}) => {
                 onGridReady={onGridReady}
                 asyncTransactionWaitMillis ={50}
                 columnDefs={[
-                  {headerName: 'RIC', field: 'ric', sortable:true, filter:true},
-                  {headerName: 'PRICE', field: 'price',sortable:true ,volatile: true},
+                  {headerName: 'Ric', field: 'ric', sortable:true, filter:true},
+                  {headerName: 'Price', field: 'price',sortable:true ,volatile: true},
                   {headerName: 'Threshold', field: 'threshold'},
-                  {headerName: 'TickTime', field: 'tickTime'}
+                  {headerName: 'Tick Time', field: 'tickTime'}
                 ]}
                 context={{ricList}}
                 getRowStyle={getRowStyle}>
             </AgGridReact>
         </div>
         <br></br>
-        <div style={{ display: 'flex',alignItems: 'center',ustifyContent: 'center', }}>
-            <form className="Form2">
-                    <FrequencyField
-                        onChildChange={onFreqUpdate}
-                        label={'frequency'}
-                        name={'frequency'}
-                        frequency={frequency}
-                    />
-            </form>
-            <button onClick={onSend2}>Update Frequency</button>
+        <div style={{width:'50%'}}>
+        <Form>
+          <Form.Group controlId="formFrequency">
+            <Form.Label>Frequency</Form.Label>
+            <Form.Control type="number" placeholder={frequency} onChange={onFreqUpdate}/>
+            <Form.Text className="text-muted">
+              Input frequency in ms
+            </Form.Text>
+            <Button onClick={sendFrequency}>Update Frequency</Button>
+          </Form.Group>
+        </Form>
+        <div style={{width:'50%'}}>
+            <Form>
+                <Form.Group controlId={'starttime'}>
+                    <Form.Label>{'Replay Start Time'}</Form.Label>
+                    <Form.Control type="number" placeholder={replayDict.starttime} onChange={onTimeUpdate}/>
+                    <Form.Text className="text-muted">
+                      Can accept values 0-4
+                    </Form.Text>
+                </Form.Group>
+                <Form.Group controlId={'endtime'}>
+                    <Form.Label>{'Replay End Time'}</Form.Label>
+                    <Form.Control type="number" placeholder={replayDict.endtime} onChange={onTimeUpdate}/>
+                    <Form.Text className="text-muted">
+                      Can accept values 1-5
+                    </Form.Text>
+                </Form.Group>
+                {replayDict.replayMode ?
+                    <Button onClick={onSendReplay} variant="failure">End Replay</Button>
+                    :<Button onClick={onSendReplay} variant="success">Start Replay</Button>
+                }
+            </Form>
+        </div>
         </div>
         </div>
     );
 };
 //
-//
+//// <Button>Update Threshold
 export default MyGrid;
 
 
+// <form className="Form2">
+//         <FrequencyField
+//             onChildChange={onFreqUpdate}
+//             label={'frequency'}
+//             name={'frequency'}
+//             frequency={frequency}
+//         />
+// </form>
+// <Button onClick={onSend2}>Update Frequency</Button>
+//style={{ display: 'flex',alignItems: 'center',ustifyContent: 'center', }}
+ // style={{ display: 'flex',alignItems: 'center',ustifyContent: 'center', }}
 // how the server works
 // replay
 // graphs
 // ohlc
 // deploy
 // post request
+// style={{ display: 'flex',alignItems: 'center',ustifyContent: 'center', }}
+// <InputField
+//     onChildChange={onUpdate}
+//     key={key}
+//     threshold={ricList[key]}
+//     label={key}
+//     name={key}
+
+// <TimeInputField time={replayDict.starttime} label={'starttime'} name={'starttime'} onChildChange={onTimeUpdate}/>
+// <br></br>
+// <TimeInputField time={replayDict.endtime} label={'endtime'} name={'endtime'} onChildChange={onTimeUpdate}/>
+// />
+// {feedOn ?
+//     <Button onClick={toggleFeed} variant="failure">Stop Feed</Button>
+//     :<Button onClick={toggleFeed} variant="success">Start Feed</Button>
+// }
