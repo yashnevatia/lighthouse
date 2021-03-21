@@ -20,3 +20,4 @@ Kindly follow these steps to run
 2. We can adjust thresholds
 3. We can adjust frequency at the bottom of the screen
 4. We can replay up to 5 minutes of data
+5. Can filter on ric to see selected updates
